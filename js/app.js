@@ -82,11 +82,11 @@ function inline(t){
 }
 const LIST_RE = /^(\s*)(- |\d+\. |\[ \] )(.*)$/;
 function renderBody(src, gid){
-  const lines = String(src||"").replace(/\r/g,"").split("\n");
-  const toc = []; let html = "", i = 0, cb = 0;
-  const isBlock = l => /^(#{2,3} |> |\|)/.test(l) || LIST_RE.test(l);
+  const toc = []; let cb = 0, steps = 0;
+  const isBlock = l => /^(#{2,3} |> |!> |\+ |\|)/.test(l) || LIST_RE.test(l);
+  const box = () => `${gid}-c${cb++}`;
+
   function list(items){
-    // build a tree from indentation (2 spaces per level)
     const root = {kids:[]}, stack = [{lvl:-1,node:root}];
     items.forEach(l=>{
       const m = l.match(LIST_RE), lvl = Math.floor(m[1].length/2);
@@ -103,31 +103,55 @@ function renderBody(src, gid){
     while(k < nodes.length){
       const type = nodes[k].type, group = [];
       while(k < nodes.length && nodes[k].type===type) group.push(nodes[k++]);
-      if(type==="check"){
-        out += `<ul class="checks">${group.map(n=>{const id=`${gid}-c${cb++}`;return `<li><label for="${id}"><input type="checkbox" id="${id}" data-track><span>${inline(n.text)}${n.kids.length?draw(n.kids):""}</span></label></li>`}).join("")}</ul>`;
-      } else {
-        out += `<${type}>${group.map(n=>`<li>${inline(n.text)}${n.kids.length?draw(n.kids):""}</li>`).join("")}</${type}>`;
-      }
+      if(type==="check") out += `<ul class="checks">${group.map(n=>{const id=box();return `<li><label for="${id}"><input type="checkbox" id="${id}" data-track><span>${inline(n.text)}${n.kids.length?draw(n.kids):""}</span></label></li>`}).join("")}</ul>`;
+      else out += `<${type}>${group.map(n=>`<li>${inline(n.text)}${n.kids.length?draw(n.kids):""}</li>`).join("")}</${type}>`;
     }
     return out;
   }
-  while(i < lines.length){
-    const l = lines[i];
-    if(!l.trim()){ i++; continue; }
-    if(l.startsWith("## ")){ const id=`${gid}-s${toc.length}`; toc.push({id,text:l.slice(3)}); html+=`<h2 id="${id}">${inline(l.slice(3))}</h2>`; i++; continue; }
-    if(l.startsWith("### ")){ html+=`<h3>${inline(l.slice(4))}</h3>`; i++; continue; }
-    if(l.startsWith("> ")){ const t=[]; while(i<lines.length && lines[i].startsWith("> ")) t.push(lines[i++].slice(2)); html+=`<div class="note">${t.map(inline).join("<br>")}</div>`; continue; }
-    if(l.startsWith("|")){
-      const rows=[]; while(i<lines.length && lines[i].startsWith("|")){ const r=lines[i++].trim(); if(/^\|[\s\-:|]+\|$/.test(r)) continue; rows.push(r.replace(/^\||\|$/g,"").split("|").map(c=>c.trim())); }
-      const [head,...body]=rows;
-      html+=`<div class="tbl"><table><thead><tr>${head.map(c=>`<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body.map(r=>`<tr>${r.map((c,j)=>`<td data-label="${esc(head[j]||"")}">${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-      continue;
+  function blocks(lines, nested){
+    let html = "", i = 0;
+    while(i < lines.length){
+      const l = lines[i];
+      if(!l.trim()){ i++; continue; }
+      if(!nested && l.startsWith("## ")){ const id=`${gid}-s${toc.length}`; toc.push({id,text:l.slice(3)}); html+=`<h2 id="${id}">${inline(l.slice(3))}</h2>`; i++; continue; }
+      if(l.startsWith("### ")){ html+=`<h3>${inline(l.slice(4))}</h3>`; i++; continue; }
+      if(!nested && l.startsWith("+ ")){
+        let out = "";
+        while(i < lines.length && lines[i].startsWith("+ ")){
+          const title = lines[i++].slice(2), body = [];
+          while(i < lines.length && !lines[i].startsWith("+ ") && !lines[i].startsWith("## ")) body.push(lines[i++]);
+          const n = ++steps, id = box();
+          out += `<li class="step"><div class="step-n" aria-hidden="true"><span>${n}</span></div><div class="step-main"><h3>${inline(title)}</h3>${blocks(body,true)}<label class="mark" for="${id}"><input type="checkbox" id="${id}" data-track><span class="mark-off">Mark done</span><span class="mark-on">Done</span></label></div></li>`;
+          while(i < lines.length && !lines[i].trim()) i++;
+        }
+        html += `<ol class="steps-list">${out}</ol>`; continue;
+      }
+      if(l.startsWith("> ") || l.startsWith("!> ")){
+        const warn = l.startsWith("!> "), t=[];
+        while(i<lines.length && lines[i].startsWith(warn?"!> ":"> ")) t.push(lines[i++].slice(warn?3:2));
+        html+=`<div class="note${warn?" warn-note":""}"><span class="note-lbl">${warn?"Watch out":"Good to know"}</span>${t.map(inline).join("<br>")}</div>`; continue;
+      }
+      if(l.startsWith("|")){
+        const rows=[]; while(i<lines.length && lines[i].startsWith("|")){ const r=lines[i++].trim(); if(/^\|[\s\-:|]+\|$/.test(r)) continue; rows.push(r.replace(/^\||\|$/g,"").split("|").map(c=>c.trim())); }
+        const [head,...body]=rows;
+        html+=`<div class="tbl"><table><thead><tr>${head.map(c=>`<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+        continue;
+      }
+      if(LIST_RE.test(l)){ const items=[]; while(i<lines.length && LIST_RE.test(lines[i])) items.push(lines[i++]); html+=list(items); continue; }
+      const t=[]; while(i<lines.length && lines[i].trim() && !isBlock(lines[i])) t.push(lines[i++].trim());
+      html+=`<p>${inline(t.join(" "))}</p>`;
     }
-    if(LIST_RE.test(l)){ const items=[]; while(i<lines.length && (LIST_RE.test(lines[i]))) items.push(lines[i++]); html+=list(items); continue; }
-    const t=[]; while(i<lines.length && lines[i].trim() && !isBlock(lines[i])) t.push(lines[i++].trim());
-    html+=`<p>${inline(t.join(" "))}</p>`;
+    return html;
   }
-  return {html, toc, checks:cb};
+  const html = blocks(String(src||"").replace(/\r/g,"").split("\n"), false);
+  return {html, toc, checks:cb, steps};
+}
+const TYPE_LABEL = {howto:"How-to", explainer:"Explainer"};
+function glanceHTML(g){
+  const rows = [["who","Who it's for"],["time","Time"],["cost","Cost"],["where","Where"],["result","You'll get"]].filter(([k])=>g.glance && g.glance[k]);
+  if(g.type==="explainer" && g.answer) return `<div class="answer"><span class="note-lbl">Short answer</span><p>${inline(g.answer)}</p></div>`;
+  if(!rows.length) return "";
+  return `<div class="glance"><span class="note-lbl">At a glance</span><dl>${rows.map(([k,l])=>`<div><dt>${l}</dt><dd>${inline(g.glance[k])}</dd></div>`).join("")}</dl></div>`;
 }
 
 const trackOf = g => TRACKS.find(t=>t.id===g.track);
@@ -137,7 +161,7 @@ const trackGuides = id => GUIDES.filter(g=>g.track===id);
 const readMins = g => Math.max(2, Math.round(String(g.body).split(/\s+/).length/200));
 
 function guideRow(g,n){
-  return `<a class="grow" href="#guide-${g.id}"><span class="num">${pad(n)}</span><div><h3>${esc(g.title)}</h3><p>${esc(g.summary)}</p><div class="gmeta">${readMins(g)} min read</div></div><span class="link">Read guide ${icon("arrow")}</span></a>`;
+  return `<a class="grow" href="#guide-${g.id}"><span class="num">${pad(n)}</span><div><h3>${esc(g.title)}</h3><p>${esc(g.summary)}</p><div class="gmeta"><span class="type-tag">${TYPE_LABEL[g.type]||"Guide"}</span>${readMins(g)} min read</div></div><span class="link">Read guide ${icon("arrow")}</span></a>`;
 }
 function searchRow(g){
   return `<a class="grow" href="#guide-${g.id}"><span class="num">${pad(stageNo(g))}</span><div><div class="tag">${esc(trackOf(g).short)} · ${esc(stageOf(g).name)}</div><h3>${esc(g.title)}</h3><p>${esc(g.summary)}</p></div><span class="link">Read guide ${icon("arrow")}</span></a>`;
@@ -246,10 +270,11 @@ const pages = {
       <div class="crumb"><a href="#guides-${t.id}">${icon("back")} ${esc(t.name)}</a><span class="sep">/</span><span class="eyebrow" style="letter-spacing:inherit">Stage ${stageNo(g)} · ${esc(stageOf(g).name)}</span></div>
       <h1 style="font-size:clamp(2.1rem,5vw,3.4rem);max-width:22ch">${esc(g.title)}</h1>
       <p class="lede">${esc(g.summary)}</p>
-      <div class="meta" style="margin-top:1.25rem"><span>${icon("clock")}${readMins(g)} min read</span><span>${icon("doc")}Guide ${k+1} of ${list.length}</span></div>
+      <div class="meta" style="margin-top:1.25rem"><span class="type-tag">${TYPE_LABEL[g.type]||"Guide"}</span><span>${icon("clock")}${readMins(g)} min read</span><span>${icon("doc")}Guide ${k+1} of ${list.length}</span></div>
     </div></div>
     <section><div class="wrap detail">
       <article class="gbody">
+        ${glanceHTML(g)}
         ${doc.html || `<div class="placeholder">Content coming soon.</div>`}
         <nav class="pager" aria-label="Guide navigation">
           ${prev?`<a class="next-guide" href="#guide-${prev.id}"><span class="lbl">Previous</span><span class="t">${esc(prev.title)}</span></a>`:"<span></span>"}

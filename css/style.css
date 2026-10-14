@@ -248,6 +248,42 @@ button.cat[aria-pressed="true"]{background:var(--bg-alt);box-shadow:inset 3px 0 
 .related .lbl{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .related svg{width:15px;height:15px;color:var(--red);vertical-align:-2px}
 
+/* guide layouts: at a glance, short answer, notes, steps */
+.note-lbl{display:block;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--red);margin-bottom:.35rem}
+.glance,.answer{border:1px solid var(--line);background:var(--surface);padding:1.25rem 1.4rem;margin-bottom:2.5rem}
+.answer{border-left:3px solid var(--red)}
+.answer p{font-size:1.1rem;line-height:1.55;margin:0}
+.glance dl{margin:.25rem 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.9rem 1.5rem}
+.glance dl div{min-width:0}
+.glance dt{font-size:.78rem;color:var(--muted);margin-bottom:.15rem}
+.glance dd{margin:0;font-weight:500;line-height:1.45}
+.note .note-lbl{color:var(--muted)}
+.warn-note{border-left-color:#b45309;background:color-mix(in srgb,#b45309 8%,var(--bg))}
+.warn-note .note-lbl{color:#b45309}
+.type-tag{display:inline-block;font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);padding:.12rem .45rem;color:var(--ink);margin-right:.6rem}
+.gbody ol.steps-list{list-style:none;padding:0;margin:0 0 1.5rem;gap:0;counter-reset:none}
+.step{display:grid;grid-template-columns:44px minmax(0,1fr);gap:1rem;position:relative;padding-bottom:1.75rem}
+.step::before{content:"";position:absolute;left:21px;top:44px;bottom:0;width:2px;background:var(--line)}
+.step:last-child::before{display:none}
+.step-n{width:44px;height:44px;border:2px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-weight:600;font-size:1.15rem;background:var(--bg);position:relative;z-index:1;transition:background .2s,border-color .2s,color .2s}
+.step-main{min-width:0;padding-top:.45rem}
+.gbody .step-main h3{margin:0 0 .6rem;font-size:1.2rem}
+.step-main > p{margin:0 0 .75rem}
+.gbody .step-main ul,.gbody .step-main ol{color:var(--ink);margin-bottom:.9rem}
+.step-main .note,.step-main .tbl{margin-bottom:.9rem}
+.mark{display:inline-flex;align-items:center;gap:.5rem;margin-top:.25rem;padding:.45rem .8rem;border:1px solid var(--line);background:var(--surface);font-size:.85rem;font-weight:500;cursor:pointer;user-select:none;transition:border-color .15s,background .15s}
+.mark:hover{border-color:var(--ink)}
+.mark input{appearance:none;width:16px;height:16px;margin:0;border:1.5px solid var(--muted);display:grid;place-items:center;cursor:pointer}
+.mark input:checked{background:var(--red);border-color:var(--red)}
+.mark input:checked::after{content:"";width:4px;height:8px;border:solid var(--red-ink);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.mark .mark-on{display:none}
+.mark:has(input:checked){border-color:var(--red)}
+.mark:has(input:checked) .mark-on{display:inline;color:var(--red)}
+.mark:has(input:checked) .mark-off{display:none}
+.step:has(.mark input:checked) .step-n{background:var(--red);border-color:var(--red);color:var(--red-ink)}
+.step:has(.mark input:checked) .step-main h3{color:var(--muted)}
+@media (max-width:520px){.step{grid-template-columns:36px minmax(0,1fr);gap:.8rem}.step-n{width:36px;height:36px;font-size:1rem}.step::before{left:17px;top:36px}}
+
 /* tracks & stages */
 .track + .track{margin-top:clamp(56px,8vw,88px);padding-top:clamp(40px,6vw,64px);border-top:2px solid var(--ink)}
 .track-head{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:2rem}
